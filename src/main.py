@@ -4,7 +4,7 @@ import sys
 import threading
 import time
 
-from parser import parse_docx
+from parser import parse_docx, get_page_count
 from evaluator import evaluate
 from reporter import report
 
@@ -56,10 +56,11 @@ def main():
     try:
         print("Parsing resume...", file=sys.stderr)
         resume_text = parse_docx(args.resume)
+        page_count = get_page_count(args.resume)
 
         evaluation = _run_with_spinner(
             "Sending to Claude for evaluation...",
-            lambda: evaluate(resume_text, role=args.role),
+            lambda: evaluate(resume_text, role=args.role, page_count=page_count),
         )
 
         report(evaluation, args.resume, output=args.output, role=args.role)

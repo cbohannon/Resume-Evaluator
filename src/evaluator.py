@@ -51,11 +51,13 @@ def _parse_response(raw: str) -> dict:
         return {"scores": {}, "evaluation": raw}
 
 
-def evaluate(resume_text: str, role: str = "") -> dict:
+def evaluate(resume_text: str, role: str = "", page_count: int | None = None) -> dict:
     """Send the resume text to Claude and return the evaluation dict."""
     client = Anthropic()
 
     content = f"Please evaluate the following resume:\n\n{resume_text}"
+    if page_count is not None:
+        content = f"This resume is {page_count} page{'s' if page_count != 1 else ''} long.\n\n" + content
     if role:
         content = f"The candidate is targeting the role: {role}\n\n" + content
 

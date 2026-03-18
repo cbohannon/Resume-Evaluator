@@ -1,10 +1,29 @@
+import zipfile
 from pathlib import Path
+from xml.etree import ElementTree
 
 from docx import Document
+from docx.oxml.ns import qn
+
+_APP_NS = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"
+
+
+def get_page_count(path: str) -> int | None:
+    """Read the page count Word stored in docProps/app.xml, or None if unavailable."""
+    try:
+        with zipfile.ZipFile(path) as z:
+            with z.open("docProps/app.xml") as f:
+                tree = ElementTree.parse(f)
+                pages = tree.find(f"{{{_APP_NS}}}Pages")
+                if pages is not None and pages.text:
+                    return int(pages.text)
+    except Exception:
+        pass
+    return None
 
 
 def parse_docx(path: str) -> str:
-    """Extract text content from a Word (.docx) file."""
+    """Extract text content from a Word (.docx) file, preserving document order."""
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"File not found: {path}")
@@ -14,16 +33,21 @@ def parse_docx(path: str) -> str:
     doc = Document(str(p))
     lines = []
 
-    for paragraph in doc.paragraphs:
-        text = paragraph.text.strip()
-        if text:
-            lines.append(text)
-
-    # Also extract text from tables (skills tables, etc.)
-    for table in doc.tables:
-        for row in table.rows:
-            row_text = "  |  ".join(cell.text.strip() for cell in row.cells if cell.text.strip())
-            if row_text:
-                lines.append(row_text)
+    for child in doc.element.body:
+        if child.tag == qn("w:p"):
+            text = "".join(node.text or "" for node in child.iter(qn("w:t"))).strip()
+            if text:
+                lines.append(text)
+        elif child.tag == qn("w:tbl"):
+            seen = set()
+            for row in child.iter(qn("w:tr")):
+                cells = []
+                for cell in row.iter(qn("w:tc")):
+                    cell_text = "".join(node.text or "" for node in cell.iter(qn("w:t"))).strip()
+                    if cell_text and cell_text not in seen:
+                        seen.add(cell_text)
+                        cells.append(cell_text)
+                if cells:
+                    lines.append("  |  ".join(cells))
 
     return "\n".join(lines)
