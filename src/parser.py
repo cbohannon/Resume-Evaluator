@@ -8,6 +8,17 @@ from docx.oxml.ns import qn
 _APP_NS = "http://schemas.openxmlformats.org/officeDocument/2006/extended-properties"
 
 
+def _extract_paragraph_text(p_elem) -> str:
+    """Extract text from a paragraph element, using ' — ' as a tab separator."""
+    parts = []
+    for node in p_elem.iter():
+        if node.tag == qn("w:t"):
+            parts.append(node.text or "")
+        elif node.tag == qn("w:tab"):
+            parts.append("  —  ")
+    return "".join(parts).strip()
+
+
 def get_page_count(path: str) -> int | None:
     """Read the page count Word stored in docProps/app.xml, or None if unavailable."""
     try:
@@ -35,7 +46,7 @@ def parse_docx(path: str) -> str:
 
     for child in doc.element.body:
         if child.tag == qn("w:p"):
-            text = "".join(node.text or "" for node in child.iter(qn("w:t"))).strip()
+            text = _extract_paragraph_text(child)
             if text:
                 lines.append(text)
         elif child.tag == qn("w:tbl"):
@@ -48,6 +59,6 @@ def parse_docx(path: str) -> str:
                         seen.add(cell_text)
                         cells.append(cell_text)
                 if cells:
-                    lines.append("  |  ".join(cells))
+                    lines.append(", ".join(cells))
 
     return "\n".join(lines)
