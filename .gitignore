@@ -24,3 +24,6 @@ build/
 
 # Resume files
 *.docx
+*.pdf
+
+.gitignore.bak
