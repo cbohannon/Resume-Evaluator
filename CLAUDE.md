@@ -13,7 +13,7 @@ resume.docx → src/parser.py → src/evaluator.py → src/reporter.py → conso
 | File | Purpose |
 |------|---------|
 | `src/main.py` | CLI entry point (`argparse`), wires pipeline together |
-| `src/parser.py` | Extracts text from `.docx` files via `python-docx` |
+| `src/parser.py` | Extracts text and page count from `.docx` files via `python-docx` |
 | `src/evaluator.py` | Sends resume text to Claude API, returns `dict` with `scores` and `evaluation` keys |
 | `src/reporter.py` | Builds scorecard table, adds header, routes output to console or file |
 
@@ -34,8 +34,13 @@ python src/main.py resume.docx --output report.md
 | `formatting` | Formatting & ATS       |
 | `overall`    | Overall                |
 
+## Parser Notes
+- Document body is walked in order so tables appear in context, not appended at the end
+- Paragraph text: `<w:t>` nodes are concatenated; `<w:tab>` elements become `  —  ` to preserve visual separation (e.g. job title `  —  ` date)
+- Table cells: each row is extracted as a comma-separated string; merged cells are deduplicated via a `seen` set
+- Page count is read from `docProps/app.xml` (Word's cached value) and passed to Claude as a fact — avoids Claude guessing from extracted text length
+
 ## Important Notes
-- `python-docx` extracts paragraph text and table cell text; table rows are joined with `  |  ` separators
 - Claude returns `{"scores": {...}, "evaluation": "..."}` — `_parse_response()` in `evaluator.py` handles fallback if JSON parsing fails
 - `max_tokens=4096` — needed for complete evaluations
 - All progress messages go to `stderr`; report content goes to `stdout`
